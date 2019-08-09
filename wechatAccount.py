@@ -34,9 +34,9 @@ class wechatAccount(object):
             启动机器人
             '''
             try:
-                worker_thread = threading.Thread(target=self.wechatRun)
-                worker_thread.setDaemon(True)
-                worker_thread.start()
+                self.thread = threading.Thread(target=self.wechatRun)
+                self.thread.setDaemon(True)
+                self.thread.start()
                 self.status = 2
             except:
                 pass

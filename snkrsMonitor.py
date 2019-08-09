@@ -86,7 +86,10 @@ class snkrsMonitor(object):
         }
         product = data["product"]
         try:
-            name = product["title"] + "[" + product["colorDescription"] + "]"
+            try:
+                name = product["title"] + "[" + product["colorDescription"] + "]"
+            except:
+                name = data["title"] + "[" + product["colorDescription"] + "]"
             if data["restricted"]:
                 name += "[受限]"
             price = "价格:" + str(product["price"]["msrp"])
@@ -102,8 +105,8 @@ class snkrsMonitor(object):
             print(publicType)
             print(launchInfo)
             return name + "\n" + price + "\n" + publicType + "\n" + launchInfo
-        except:
-            pass
+        except Exception as ex:
+            return "接口修改警告"
     def requestSneakers(self, order, offset):
         requrl = self.apiurl + "&offset=" + str(offset) + order
         http = urllib3.PoolManager()
@@ -204,16 +207,19 @@ class snkrsMonitor(object):
                         product = data["product"]
                         print("\r", self.publicMethod.getLocalTimeStr(t_last_update_date), end=" ")
                         t_str = "售罄"
-                        if product["merchStatus"] == "ACTIVE":
-                            if product["available"]:
-                                t_str = "库存更新("
-                                for sku in product["skus"]:
-                                    if sku["available"]:
-                                        t_str += (sku["localizedSize"] + ",")
-                                        t_str = t_str[:-1]
-                                        t_str += ")"
-                        print(t_str, end=" ")
-                        productIntro = self.printSneaker(data)
+                        try:     
+                            if product["merchStatus"] == "ACTIVE":
+                                if product["available"]:
+                                    t_str = "库存更新("
+                                    for sku in product["skus"]:
+                                        if sku["available"]:
+                                            t_str += (sku["localizedSize"] + ",")
+                                            t_str = t_str[:-1]
+                                            t_str += ")"
+                            print(t_str, end=" ")
+                            productIntro = self.printSneaker(data)
+                        except:
+                            continue
                         for key in findstrs:
                             if key in productIntro:
                                 self.wechat.sendNotice(t_str + productIntro)
