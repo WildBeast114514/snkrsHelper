@@ -206,7 +206,7 @@ class snkrsMonitor(object):
                         self.ludict[sneakerid] = self.publicMethod.getTime(t_last_update_date)
                         product = data["product"]
                         print("\r", self.publicMethod.getLocalTimeStr(t_last_update_date), end=" ")
-                        t_str = "售罄"
+                        t_str = "售罄/SNKRS更新商品信息"
                         try:     
                             if product["merchStatus"] == "ACTIVE":
                                 if product["available"]:
@@ -219,20 +219,23 @@ class snkrsMonitor(object):
                             print(t_str, end=" ")
                             productIntro = self.printSneaker(data)
                         except:
+                            t_str = "读取商品状态失败"
+                            for key in findstrs:
+                                if key in productIntro:
+                                    self.wechat.sendNotice(t_str + productIntro)
                             continue
+                        #for key in findstrs:
+                        #    if key in productIntro:
+                        #        self.wechat.sendNotice(t_str + productIntro)
+                        #seostr = data["seoSlug"]
                         for key in findstrs:
                             if key in productIntro:
-                                self.wechat.sendNotice(t_str + productIntro)
-                        seostr = data["seoSlug"]
-                        for key in findstrs:
-                            if seostr.find(key) != -1:
-                                productIntro = self.printSneakerDetail(data)
                                 self.publicMethod.addseptag()
                                 i = self.warningTime
                                 while i > 0:
                                     self.warning_hints("\r《关注鞋款库存更新》")
                                     print("关注鞋款库存更新")
-                                    self.wechat.sendNotice("关注鞋款库存更新" + productIntro)
+                                    self.wechat.sendNotice("关注鞋款库存更新" + t_str +productIntro)
                                     i -= 1
                                 break
                 print("\r" + time.strftime("time :%Y-%m-%d %H:%M:%S", time.localtime(time.time())), end=" ")
