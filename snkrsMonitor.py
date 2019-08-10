@@ -9,6 +9,7 @@ from collections import deque
 import os
 import requests
 import platform
+from common.logger import *
 
 from enum import Enum
 
@@ -56,7 +57,7 @@ class snkrsMonitor(object):
 
     def titlePrint(self):
         self.publicMethod.addsepline()
-        print("田所浩二的Nike球鞋监控 V0.1")
+        print("田所浩二的Nike球鞋监控 V0.31")
         self.publicMethod.addsepline()
     def baseConfig(self):
         areaCode = input("请选择市场区域(1:美国,2:日本,3:中国):")
@@ -89,6 +90,7 @@ class snkrsMonitor(object):
             try:
                 name = product["title"] + "[" + product["colorDescription"] + "]"
             except:
+                LOG_WARN('缺失product["title"],sneakerid='+data["id"])
                 name = data["title"] + "[" + product["colorDescription"] + "]"
             if data["restricted"]:
                 name += "[受限]"
@@ -97,7 +99,7 @@ class snkrsMonitor(object):
             if product["publishType"] == "LAUNCH":
                 engine = product["selectionEngine"]
                 publicType = "发售方式:" + dict1[engine]
-            launchInfo = "不可购买"
+            launchInfo = "发售时间:不可购买"
             if product["merchStatus"] == "ACTIVE" and product["available"] and "stopSellDate" not in product.keys():
                 launchInfo = "发售时间:" + self.publicMethod.getLocalTimeStr(product["startSellDate"])
             print(name)
@@ -106,15 +108,18 @@ class snkrsMonitor(object):
             print(launchInfo)
             return name + "\n" + price + "\n" + publicType + "\n" + launchInfo
         except Exception as ex:
+            LOG_ERROR("读取sneaker信息错误，原因："+str(ex))
             return "接口修改警告"
     def requestSneakers(self, order, offset):
         requrl = self.apiurl + "&offset=" + str(offset) + order
         http = urllib3.PoolManager()
+        LOG_DEBUG("请求nike published列表，url："+requrl)
         r = http.request("GET", requrl)
         shoes = []
         try:
             json_data = json.loads(str(r.data, encoding="utf-8"))
             if "error_id" in json_data:
+                LOG_DEBUG("出现errorid,errorid="+json_data["error_id"])
                 print("请求offset超出范围，返回shoes")
                 return shoes
             else:
@@ -128,7 +133,8 @@ class snkrsMonitor(object):
                         self.printSneaker(data)
                 return shoes
         except Exception as ex:
-            print("\r访问服务器失败，3秒后重试,原因为:"+str(ex))
+            LOG_ERROR("访问服务器失败,原因为:"+str(ex))
+            print("\r访问服务器失败，3秒后重试")
             time.sleep(3)
             return self.requestSneakers(order, offset)
     def listPublishedShoes(self):
@@ -138,6 +144,7 @@ class snkrsMonitor(object):
             if len(snkrs) == 0:
                 print("数据请求完毕,一共获取到", str(len(self.sneakers)), "条数据(只显示前50条)...")
                 break
+            LOG_DEBUG("构建sneaker缓存")
             self.sneakers.extend(snkrs)
             time.sleep(2)
     def userSetup(self):
@@ -178,11 +185,13 @@ class snkrsMonitor(object):
             try:
                 http = urllib3.PoolManager()
                 requesturl = self.apiurl + OrderBy.updated.value + "&offset=0"
+                LOG_DEBUG("请求NIKE lastupdated列表")
                 r = http.request("GET", requesturl)
                 json_data = json.loads(str(r.data, encoding="utf-8"))
                 datas = json_data["threads"]
             except Exception as ex:
-                print("\r请求失败" + str(ex), flush=True)
+                LOG_ERROR("请求失败"+str(ex))
+                print("\r请求失败" , flush=True)
                 continue
             findstrs = self.keyword.split("&")
             for data in datas:
@@ -199,6 +208,7 @@ class snkrsMonitor(object):
                         self.publicMethod.addseptag()
                         for key in findstrs:
                             if key in productIntro:
+                                LOG_DEBUG("往微信发送消息，鞋款为"+productIntro)
                                 self.wechat.sendNotice("发现新款  更新时间:" + self.publicMethod.getLocalTimeStr(t_last_update_date) + productIntro)
                         i -= 1
                 else:
@@ -206,7 +216,7 @@ class snkrsMonitor(object):
                         self.ludict[sneakerid] = self.publicMethod.getTime(t_last_update_date)
                         product = data["product"]
                         print("\r", self.publicMethod.getLocalTimeStr(t_last_update_date), end=" ")
-                        t_str = "售罄/SNKRS更新商品信息"
+                        t_str = "[售罄/SNKRS更新商品信息]"
                         try:     
                             if product["merchStatus"] == "ACTIVE":
                                 if product["available"]:
@@ -218,10 +228,12 @@ class snkrsMonitor(object):
                                             t_str += ")"
                             print(t_str, end=" ")
                             productIntro = self.printSneaker(data)
-                        except:
+                        except Exception as ex:
+                            LOG_ERROR("读取商品状态失败,原因"+str(ex))
                             t_str = "读取商品状态失败"
                             for key in findstrs:
                                 if key in productIntro:
+                                    LOG_DEBUG("往微信发送读取失败消息，鞋款为"+productIntro)
                                     self.wechat.sendNotice(t_str + productIntro)
                             continue
                         #for key in findstrs:
@@ -233,13 +245,15 @@ class snkrsMonitor(object):
                                 self.publicMethod.addseptag()
                                 i = self.warningTime
                                 while i > 0:
-                                    self.warning_hints("\r《关注鞋款库存更新》")
-                                    print("关注鞋款库存更新")
-                                    self.wechat.sendNotice("关注鞋款库存更新" + t_str +productIntro)
+                                    self.warning_hints("\r《关注鞋款信息更新》")
+                                    print("关注鞋款信息更新")
+                                    LOG_DEBUG("往微信发送关注鞋款消息，鞋款为"+productIntro)
+                                    self.wechat.sendNotice("关注鞋款信息更新:" + t_str +productIntro)
                                     i -= 1
                                 break
                 print("\r" + time.strftime("time :%Y-%m-%d %H:%M:%S", time.localtime(time.time())), end=" ")
             time.sleep(self.frequency)
 
 if __name__ == "__main__":
+    Logger.Init(level=logging.DEBUG, logfile = './log/snkrs')
     snkrsMonitor()

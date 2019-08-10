@@ -3,6 +3,7 @@
 
 import itchat
 import threading
+from common.logger import *
 
 class wechatAccount(object):
 
@@ -46,11 +47,12 @@ class wechatAccount(object):
         
     def sendNotice(self,notice):
         if not self.status:
+            LOG_ERROR("微信模组没有运行，请检查账号是否被封")
             print("微信模组没有运行，请检查账号是否被封")
         else:
             try:
                 user_name = self.instance.search_chatrooms(name=self.noticeGroup)[0].UserName
             except:
+                LOG_WARN('查询不到"'+self.noticeGroup+'"的群，发送提醒失败！')
                 print('查询不到"'+self.noticeGroup+'"的群，发送提醒失败！')
-
             self.instance.send_msg(notice,toUserName=user_name)
