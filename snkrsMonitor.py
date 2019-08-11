@@ -41,7 +41,9 @@ class OrderBy(Enum):
 
 
 class snkrsMonitor(object):
-    def __init__(self, wechat=None):
+    def __init__(self, wechat=None, reporter=None):
+        self.status = 1
+        self.reporter = reporter
         self.wechat = wechat
         self.totalCount = 1000000
         self.apiurl = "https://api.nike.com/snkrs/content/v1/?"
@@ -182,11 +184,12 @@ class snkrsMonitor(object):
             print(tip_text)
     def timer(self,n):
         while True:
+            self.reporter.report()
             try:
                 http = urllib3.PoolManager()
                 requesturl = self.apiurl + OrderBy.updated.value + "&offset=0"
                 LOG_DEBUG("请求NIKE lastupdated列表")
-                r = http.request("GET", requesturl)
+                r = http.request("GET", requesturl, timeout=4.0)
                 json_data = json.loads(str(r.data, encoding="utf-8"))
                 datas = json_data["threads"]
             except Exception as ex:
@@ -253,6 +256,7 @@ class snkrsMonitor(object):
                                 break
                 print("\r" + time.strftime("time :%Y-%m-%d %H:%M:%S", time.localtime(time.time())), end=" ")
             time.sleep(self.frequency)
+        self.status = 0
 
 if __name__ == "__main__":
     Logger.Init(level=logging.DEBUG, logfile = './log/snkrs')
