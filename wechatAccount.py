@@ -55,4 +55,5 @@ class wechatAccount(object):
             except:
                 LOG_WARN('查询不到"'+self.noticeGroup+'"的群，发送提醒失败！')
                 print('查询不到"'+self.noticeGroup+'"的群，发送提醒失败！')
+                return
             self.instance.send_msg(notice,toUserName=user_name)
